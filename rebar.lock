@@ -9,7 +9,7 @@
  {<<"jsx">>,{pkg,<<"jsx">>,<<"3.1.0">>},0},
  {<<"mtproto_proxy">>,
   {git,"git@github.com:seriyps/mtproto_proxy.git",
-       {ref,"16abd21927f9892a386943823c5b58209ee62685"}},
+       {ref,"0180d7e2af95134ab15f8b807ae0902038ea9ae8"}},
   0},
  {<<"prometheus">>,{pkg,<<"prometheus">>,<<"4.12.0">>},0},
  {<<"prometheus_cowboy">>,{pkg,<<"prometheus_cowboy">>,<<"0.1.9">>},0},
