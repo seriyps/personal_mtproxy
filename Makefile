@@ -2,6 +2,8 @@ DESTDIR:=
 prefix:=$(DESTDIR)/opt
 REBAR3:=rebar3
 SERVICE:=$(DESTDIR)/etc/systemd/system/personal_mtproxy.service
+BACKUP_SERVICE:=$(DESTDIR)/etc/systemd/system/personal-mtproxy-dets-backup.service
+BACKUP_TIMER:=$(DESTDIR)/etc/systemd/system/personal-mtproxy-dets-backup.timer
 LOGDIR:=$(DESTDIR)/var/log/personal_mtproxy
 DATADIR:=$(DESTDIR)/var/lib/personal_mtproxy
 USER:=personal_mtproxy
@@ -9,6 +11,8 @@ USER:=personal_mtproxy
 CERTBOT_HOOK_DIR  := $(DESTDIR)/etc/letsencrypt/renewal-hooks/deploy
 CERTBOT_HOOK_DEST := $(CERTBOT_HOOK_DIR)/personal_mtproxy.sh
 CERTBOT_HOOK_SRC  := config/certbot-deploy.sh
+BACKUP_SCRIPT_SRC := config/backup-dets.sh
+BACKUP_SCRIPT_DEST := $(prefix)/personal_mtproxy/bin/backup-dets.sh
 
 # Read all vhost domains from config/sys.config.
 # Matches lines like:  domain   => "some.domain.tld",
@@ -74,6 +78,9 @@ install: user $(LOGDIR) $(DATADIR)
 	mkdir -p $(prefix)/personal_mtproxy/log/
 	chmod 777 $(prefix)/personal_mtproxy/log/
 	install -D config/personal-mtproxy.service $(SERVICE)
+	install -D config/personal-mtproxy-dets-backup.service $(BACKUP_SERVICE)
+	install -D config/personal-mtproxy-dets-backup.timer $(BACKUP_TIMER)
+	install -D -m 755 $(BACKUP_SCRIPT_SRC) $(BACKUP_SCRIPT_DEST)
 	systemctl daemon-reload
 	# --- Per-vhost cert directories and certbot deploy hook ---
 	@test -n "$(DOMAINS)" || \
@@ -132,6 +139,7 @@ update-sysconfig: config/sys.config $(prefix)/personal_mtproxy
 
 uninstall:
 	rm $(SERVICE)
+	rm -f $(BACKUP_SERVICE) $(BACKUP_TIMER)
 	rm -r $(prefix)/personal_mtproxy
 	rm -f $(CERTBOT_HOOK_DEST)
 	systemctl daemon-reload

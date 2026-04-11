@@ -1,0 +1,11 @@
+[Unit]
+Description=Run personal_mtproxy DETS backups daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+Unit=personal-mtproxy-dets-backup.service
+
+[Install]
+WantedBy=timers.target

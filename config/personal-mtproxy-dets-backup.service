@@ -1,0 +1,9 @@
+[Unit]
+Description=Backup personal_mtproxy DETS file
+
+[Service]
+Type=oneshot
+User=personal_mtproxy
+Group=personal_mtproxy
+WorkingDirectory=/var/lib/personal_mtproxy
+ExecStart=/opt/personal_mtproxy/bin/backup-dets.sh

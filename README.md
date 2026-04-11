@@ -63,8 +63,13 @@ make
 ```bash
 # Install to /opt/personal_mtproxy + systemd unit
 sudo make install
-sudo systemctl enable --now personal_mtproxy
+sudo systemctl enable --now personal_mtproxy personal-mtproxy-dets-backup.timer
 ```
+
+The backup timer creates a timestamped copy of
+`/var/lib/personal_mtproxy/proxies.dets` in the same directory once per day,
+for example `proxies.dets.20260411T231559Z.bak`, and keeps only the 10 newest
+backups.
 
 ## TLS certificate (production)
 
@@ -75,4 +80,3 @@ certbot certonly --standalone -d demo.personal-mtp.online
 ```
 
 Wildcard cert (`*.demo.personal-mtp.online`) requires DNS-01 — see [article](priv/ARTICLE.md) for details.
-
