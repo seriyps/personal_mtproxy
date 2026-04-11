@@ -222,7 +222,9 @@ routes() ->
         {'_', [
             {"/api/proxies", pm_web_handler, []},
             {"/", cowboy_static, {priv_file, personal_mtproxy, "htdocs/index.html"}},
-            {"/admin.html", cowboy_static, {priv_file, personal_mtproxy, "htdocs/admin.html"}},
+            {"/admin.html", pm_admin_redirect_handler, []},
+            {"/admin.en.html", cowboy_static, {priv_file, personal_mtproxy, "htdocs/admin.en.html"}},
+            {"/admin.ru.html", cowboy_static, {priv_file, personal_mtproxy, "htdocs/admin.ru.html"}},
             {"/static/[...]", cowboy_static, {priv_dir, personal_mtproxy, "htdocs"}}
         ]}
     ]).

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Персональный MTProto Proxy</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+    .lang-switch {
+      text-align: right;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .lang-switch a { color: #667eea; text-decoration: none; }
+    .lang-switch .active { color: #333; }
+    h1 { color: #333; margin-top: 0; text-align: center; }
+    p { color: #666; text-align: center; }
+    form { display: flex; flex-direction: column; gap: 20px; }
+    label { display: block; color: #333; margin-bottom: 5px; font-weight: 500; }
+    input {
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    button {
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #764ba2; }
+    button:active { opacity: 0.9; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .hidden { display: none; }
+    .form-section { display: flex; flex-direction: column; gap: 20px; }
+    .result {
+      background: #f0f7ff;
+      border: 1px solid #bce;
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .success { color: #27ae60; font-weight: bold; margin-bottom: 15px; }
+    .info-box {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .label {
+      color: #666;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    .value {
+      font-family: monospace;
+      word-break: break-all;
+      font-size: 13px;
+      color: #333;
+      padding: 10px;
+      background: #fafafa;
+      border-radius: 3px;
+      user-select: all;
+    }
+    .button-group { display: flex; gap: 10px; margin-top: 15px; }
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-secondary { background: #ecf0f1; color: #333; flex: 1; }
+    .btn-secondary:hover { background: #bdc3c7; }
+    .note {
+      color: #e74c3c;
+      margin-top: 15px;
+      padding: 12px;
+      background: #fadbd8;
+      border: 1px solid #f5b7b1;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .dev-warning {
+      background: #fef9e7;
+      border: 1px solid #f9ca24;
+      color: #7d6608;
+      padding: 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .dev-warning strong { display: block; margin-bottom: 4px; }
+    .error-box {
+      background: #fadbd8;
+      border: 1px solid #f5b7b1;
+      color: #c0392b;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="lang-switch">
+      <span class="active">RU</span> | <a href="/admin.en.html">EN</a>
+    </div>
+
+    <div id="form-section" class="form-section">
+      <h1>Персональный MTProto Proxy</h1>
+      <p>Введите email (необязательно) и получите персональную ссылку на прокси.</p>
+      <form id="registration-form">
+        <div>
+          <label for="email">Ваш email (необязательно):</label>
+          <input type="email" name="email" id="email" placeholder="user@example.com" />
+        </div>
+        <button type="submit" id="submit-btn">Получить прокси</button>
+      </form>
+    </div>
+
+    <div id="result-section" class="hidden">
+      <div class="result">
+        <div class="success">✓ Прокси создан</div>
+
+        <div class="info-box">
+          <div class="label">Ваш поддомен:</div>
+          <div class="value" id="subdomain-value"></div>
+        </div>
+
+        <div class="info-box">
+          <div class="label">Ссылка на прокси (формат t.me):</div>
+          <div class="value" id="link-value" onclick="copyLink()" style="cursor: pointer;"></div>
+          <button class="btn btn-secondary" onclick="copyLink()" style="margin-top: 10px;">Скопировать ссылку</button>
+        </div>
+
+        <div class="info-box">
+          <div class="label">Кнопка для Telegram:</div>
+          <a href="#" id="tg-link" style="display: inline-block;">
+            <button class="btn btn-secondary" style="margin: 10px 0;">Открыть в Telegram</button>
+          </a>
+        </div>
+
+        <div class="note">
+          <strong>⚠️ Важно:</strong> Делитесь этой ссылкой только с теми, кому доверяете. Прокси привязан к персональному домену и ограничивает число одновременных подключений, чтобы исключить несанкционированное использование.
+        </div>
+
+        <div id="dev-warning" class="dev-warning hidden">
+          <strong>🛠 Обнаружен локальный домен разработки</strong>
+          Сгенерированная ссылка содержит персональный поддомен (например,
+          <code id="dev-subdomain-example">xxxxx.demo.personal-mtp.test</code>)
+          в качестве имени сервера. <code>/etc/hosts</code> не поддерживает
+          wildcard-записи, поэтому этот поддомен не разрешится локально.<br><br>
+          Чтобы проверить прокси:<br>
+          &nbsp;• Добавьте точный поддомен в <code>/etc/hosts</code>:
+            <code>127.0.0.1 &lt;поддомен&gt;</code><br>
+          &nbsp;• Или вручную замените значение <code>server=</code> в ссылке
+            на базовый домен (<code id="dev-base-domain"></code>).
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button onclick="resetForm()" style="flex: 1;">Получить ещё один прокси</button>
+          <button onclick="revokeProxy()" id="revoke-btn" style="flex: 1; background: #e74c3c;">Отозвать этот прокси</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-section" class="hidden">
+      <div class="error-box" id="error-message"></div>
+      <button onclick="resetForm()" style="width: 100%;">Попробовать снова</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('registration-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value || '';
+      const submitBtn = document.getElementById('submit-btn');
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading"></span> Создаём...';
+
+      try {
+        const response = await fetch('/api/proxies', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'email=' + encodeURIComponent(email)
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          showError(data.error);
+        } else {
+          showResult(data);
+        }
+      } catch (err) {
+        showError('Ошибка сети: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Получить прокси';
+      }
+    });
+
+    function showResult(data) {
+      document.getElementById('form-section').classList.add('hidden');
+      document.getElementById('error-section').classList.add('hidden');
+      document.getElementById('result-section').classList.remove('hidden');
+
+      document.getElementById('subdomain-value').textContent = data.subdomain;
+      document.getElementById('link-value').textContent = data.link;
+      document.getElementById('tg-link').href = data.tg_link;
+      document.getElementById('revoke-btn').dataset.subdomain = data.subdomain;
+
+      const host = window.location.hostname;
+      const isDevDomain = host.endsWith('.test') || host === 'localhost';
+      const warningEl = document.getElementById('dev-warning');
+      if (isDevDomain) {
+        document.getElementById('dev-subdomain-example').textContent = data.subdomain;
+        document.getElementById('dev-base-domain').textContent = host;
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
+    }
+
+    function showError(message) {
+      document.getElementById('form-section').classList.add('hidden');
+      document.getElementById('result-section').classList.add('hidden');
+      document.getElementById('error-section').classList.remove('hidden');
+      document.getElementById('error-message').textContent = message;
+    }
+
+    function resetForm() {
+      document.getElementById('registration-form').reset();
+      document.getElementById('form-section').classList.remove('hidden');
+      document.getElementById('result-section').classList.add('hidden');
+      document.getElementById('error-section').classList.add('hidden');
+      const revokeBtn = document.getElementById('revoke-btn');
+      revokeBtn.disabled = false;
+      revokeBtn.textContent = 'Отозвать этот прокси';
+    }
+
+    async function revokeProxy() {
+      const btn = document.getElementById('revoke-btn');
+      const subdomain = btn.dataset.subdomain;
+      if (!subdomain) return;
+      if (!confirm('Отозвать прокси для ' + subdomain + '? Это действие нельзя отменить.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Отзываем...';
+      try {
+        await fetch('/api/proxies?' + new URLSearchParams({subdomain}), {method: 'DELETE'});
+        resetForm();
+      } catch (err) {
+        alert('Не удалось отозвать прокси: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Отозвать этот прокси';
+      }
+    }
+
+    function copyLink() {
+      const linkElem = document.getElementById('link-value');
+      navigator.clipboard.writeText(linkElem.textContent).then(() => {
+        alert('Ссылка скопирована в буфер обмена!');
+      });
+    }
+  </script>
+</body>
+</html>

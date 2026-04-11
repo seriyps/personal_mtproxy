@@ -162,6 +162,7 @@
       line-height: 1.5;
     }
     .dev-warning strong { display: block; margin-bottom: 4px; }
+    .error-box {
       background: #fadbd8;
       border: 1px solid #f5b7b1;
       color: #c0392b;
@@ -169,6 +170,14 @@
       border-radius: 4px;
       margin-bottom: 20px;
     }
+    .lang-switch {
+      text-align: right;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .lang-switch a { color: #667eea; text-decoration: none; }
+    .lang-switch .active { color: #333; }
     .loading {
       display: inline-block;
       width: 16px;
@@ -186,6 +195,9 @@
 </head>
 <body>
   <div class="container">
+    <div class="lang-switch">
+      <a href="/admin.ru.html">RU</a> | <span class="active">EN</span>
+    </div>
     <div id="form-section" class="form-section">
       <h1>Personal MTProto Proxy</h1>
       <p>Enter your email (optional) and get a personal proxy link.</p>
