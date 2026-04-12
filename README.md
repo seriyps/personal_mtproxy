@@ -80,3 +80,59 @@ certbot certonly --standalone -d demo.personal-mtp.online
 ```
 
 Wildcard cert (`*.demo.personal-mtp.online`) requires DNS-01 — see [article](priv/ARTICLE.md) for details.
+
+## Split-mode setup (front + back)
+
+`mtproto_proxy` supports running the client-facing part (front) on a domestic
+server and the Telegram-facing part (back) on a foreign server. See the
+[mtproto_proxy README](https://github.com/seriyps/mtproto_proxy#split-mode-setup-front--back)
+for the full setup guide, firewall rules, and inter-server link options.
+
+`personal_mtproxy` can run on the **back node** — which is the right choice for
+multi-front deployments, because DETS (the user database) then lives in one
+place and is the single source of truth. On every front reconnect the back
+replays the full subdomain list into that front's policy table automatically.
+
+**Front nodes** run vanilla `mtproto_proxy` (no `personal_mtproxy`). Use
+`config/sys.config.front.example` from the mtproto_proxy repo as a starting
+point — the key settings are:
+
+```erlang
+{mtproto_proxy, [
+  {node_role, front},
+  {back_node, 'back@<BACK_IP>'},   % must match -name in back node's vm.args
+  {ports, [#{name => mtp_handler_1, listen_ip => "0.0.0.0", port => 443,
+             secret => <<"...same secret as back...">>,
+             tag => <<"...">>}]},
+  {allowed_protocols, [mtp_fake_tls]},
+  {domain_fronting, "<BACK_IP>:8443"},  % forward non-MTP to Cowboy on back node
+  {policy, [{in_table, tls_domain, personal_domains},
+            {max_connections, [tls_domain], 100}]}
+]}
+```
+
+**Back node `sys.config` additions:**
+
+```erlang
+{mtproto_proxy, [
+  {node_role, back},
+  %% personal_mtproxy reads port + secret from here to build proxy links.
+  %% mtproto_proxy itself ignores `ports` on a back node.
+  {ports, [#{name => mtp_handler_1, listen_ip => "0.0.0.0", port => 443,
+             secret => <<"...same secret as fronts...">>,
+             tag => <<"...">>}]},
+  ...
+]},
+{personal_mtproxy, [
+  %% domain_fronting is not available on a back node; explicit addr is required.
+  {web_listen_ip,   "0.0.0.0"},
+  {web_listen_port, 8443},
+  ...
+]}
+```
+
+To manually resync all connected front nodes (e.g. after split-brain recovery):
+
+```bash
+/opt/personal_mtproxy/bin/personal_mtproxy eval 'pm_registry:refresh_fronts().'
+```

@@ -203,13 +203,20 @@ cowboy_listen_addr() ->
             {ok, ParsedIp} = inet:parse_address(Ip),
             {ParsedIp, Port, explicit};
         _ ->
-            {ok, DomainFronting} = application:get_env(mtproto_proxy, domain_fronting),
-            case string:split(DomainFronting, ":") of
-                [Host, PortStr] ->
-                    {ok, Ip} = inet:parse_address(Host),
-                    {Ip, list_to_integer(PortStr), fronting};
-                _ ->
-                    error({badarg, invalid_domain_fronting_config, DomainFronting})
+            case application:get_env(mtproto_proxy, domain_fronting) of
+                {ok, DomainFronting} ->
+                    case string:split(DomainFronting, ":") of
+                        [Host, PortStr] ->
+                            {ok, Ip} = inet:parse_address(Host),
+                            {Ip, list_to_integer(PortStr), fronting};
+                        _ ->
+                            error({badarg, invalid_domain_fronting_config, DomainFronting})
+                    end;
+                undefined ->
+                    error({missing_web_listen_config,
+                           "Set {web_listen_ip, ...} and {web_listen_port, ...} in "
+                           "personal_mtproxy config (domain_fronting is not available "
+                           "on a back node)"})
             end
     end.
 
