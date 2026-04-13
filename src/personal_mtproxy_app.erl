@@ -46,8 +46,7 @@ start(_StartType, _StartArgs) ->
             case Kind of
                 fronting ->
                     {ok, [#{port := ProxyPort} | _]} = application:get_env(mtproto_proxy, ports),
-                    ?LOG_INFO("To open UI via domain fronting, use https://<domain>:~p", [ProxyPort]),
-                    ok = add_vhost_domains(Vhosts);
+                    ?LOG_INFO("To open UI via domain fronting, use https://<domain>:~p", [ProxyPort]);
                 explicit ->
                     ok
             end,
@@ -63,13 +62,7 @@ start(_StartType, _StartArgs) ->
 stop(_State) ->
     cowboy:stop_listener(?LISTENER),
     stop_metrics_listener(),
-    case cowboy_listen_addr() of
-        {_, _, fronting} ->
-            Vhosts = read_vhosts(),
-            ok = del_vhost_domains(Vhosts);
-        _ ->
-            ok
-    end.
+    ok.
 
 config_change(Changed, New, Removed) ->
     ok = lists:foreach(fun({K, V}) -> on_config_changed(changed, K, V) end, Changed),
@@ -83,17 +76,9 @@ on_config_changed(Action, vhosts, NewVhosts) when Action =:= changed; Action =:=
                     {ok, V} -> V;
                     undefined -> []
                 end,
-    OldDomains = ordsets:from_list([maps:get(domain, V) || V <- OldVhosts]),
-    NewDomains  = ordsets:from_list([maps:get(domain, V) || V <- NewVhosts]),
-    Added   = ordsets:subtract(NewDomains, OldDomains),
-    Removed = ordsets:subtract(OldDomains, NewDomains),
-    case cowboy_listen_addr() of
-        {_, _, fronting} ->
-            [mtp_policy_table:add(personal_domains, tls_domain, list_to_binary(D)) || D <- Added],
-            [mtp_policy_table:del(personal_domains, tls_domain, list_to_binary(D)) || D <- Removed];
-        _ ->
-            ok
-    end,
+    %% Broadcast updated vhost domains to all front nodes (pm_registry reads app env directly).
+    %% Note: domains removed from config linger in the policy table until next node restart.
+    ok = pm_registry:reload_static_domains(),
     %% If the primary vhost (default cert) changed, restart the listener
     OldPrimary = case OldVhosts of [H | _] -> H; [] -> undefined end,
     NewPrimary = hd(NewVhosts),
@@ -149,18 +134,6 @@ find_vhost_by_sni(SNI, Vhosts) ->
         {value, #{ssl_cert := Cert, ssl_key := Key}} -> [{certfile, Cert}, {keyfile, Key}];
         false                                         -> []
     end.
-
-add_vhost_domains(Vhosts) ->
-    lists:foreach(
-      fun(#{domain := D}) ->
-              ok = mtp_policy_table:add(personal_domains, tls_domain, list_to_binary(D))
-      end, Vhosts).
-
-del_vhost_domains(Vhosts) ->
-    lists:foreach(
-      fun(#{domain := D}) ->
-              ok = mtp_policy_table:del(personal_domains, tls_domain, list_to_binary(D))
-      end, Vhosts).
 
 restart_listener(Vhosts) ->
     cowboy:stop_listener(?LISTENER),

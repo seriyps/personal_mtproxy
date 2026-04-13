@@ -7,7 +7,8 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, register/2, revoke/1, list/0, size/0, refresh_fronts/0]).
+-export([start_link/0, register/2, revoke/1, list/0, size/0, refresh_fronts/0,
+         reload_static_domains/0, get_static_domains/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -include_lib("kernel/include/logger.hrl").
@@ -43,6 +44,13 @@ size() ->
 refresh_fronts() ->
     gen_server:call(?SERVER, refresh_fronts).
 
+%% Re-broadcast all vhost domains from app env to front nodes.
+%% Call after updating {vhosts} in application env (e.g. from config_change).
+%% Note: domains removed from config are NOT removed from the policy table
+%% (no diff is kept); a full node restart is needed to clean those up.
+reload_static_domains() ->
+    gen_server:call(?SERVER, reload_static_domains).
+
 init([]) ->
     {ok, DetsFile} = application:get_env(?APP, dets_file),
 
@@ -54,7 +62,6 @@ init([]) ->
 
     FrontNodes = lists:filter(fun is_front_node/1, [node() | nodes()]),
     ok = replay_to_nodes(FrontNodes, DetsRef),
-
     {ok, #state{dets_ref = DetsRef, front_nodes = FrontNodes}}.
 
 handle_call({register, Email, BaseDomain}, _From, State = #state{dets_ref = DetsRef}) ->
@@ -91,7 +98,13 @@ handle_call(refresh_fronts, _From, State = #state{dets_ref = DetsRef, front_node
     Added = NewFronts -- OldFronts,
     replay_to_nodes(Added, DetsRef),
     ?LOG_INFO("refresh_fronts: old=~p new=~p added=~p", [OldFronts, NewFronts, Added]),
-    {reply, {ok, NewFronts}, State#state{front_nodes = NewFronts}}.
+    {reply, {ok, NewFronts}, State#state{front_nodes = NewFronts}};
+
+handle_call(reload_static_domains, _From, State = #state{front_nodes = FrontNodes}) ->
+    Domains = get_static_domains(),
+    [broadcast_policy(add, D, FrontNodes) || D <- Domains],
+    ?LOG_INFO("reload_static_domains: broadcast ~p domains to ~p", [length(Domains), FrontNodes]),
+    {reply, ok, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -121,8 +134,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% Private helpers
 
-%% Replay all DETS entries into the policy table on each of the given nodes.
+%% Replay all DETS entries and static (vhost) domains into the policy table
+%% on each of the given nodes.
 replay_to_nodes(Nodes, DetsRef) ->
+    [policy_rpc(Node, add, D) || Node <- Nodes, D <- get_static_domains()],
     dets:foldl(
       fun({Subdomain, _Email, _Timestamp}, ok) ->
               [policy_rpc(Node, add, Subdomain) || Node <- Nodes],
@@ -152,6 +167,19 @@ is_front_node(Node) ->
         undefined            -> false
     catch _:_ -> false
     end.
+
+%% Read base/vhost domains from app env. These are always in the policy table
+%% but are never stored in DETS and must not be revoked via the API.
+get_static_domains() ->
+    Vhosts = case application:get_env(?APP, vhosts) of
+                 {ok, V} when V =/= [] -> V;
+                 _ ->
+                     case application:get_env(?APP, base_domain) of
+                         {ok, D} -> [#{domain => D}];
+                         undefined -> []
+                     end
+             end,
+    [list_to_binary(maps:get(domain, V)) || V <- Vhosts].
 
 generate_slug(DetsRef, BaseDomain, Retries) ->
     case Retries of

@@ -54,11 +54,16 @@ handle(Req = #{method := <<"DELETE">>, path := <<"/api/proxies">>}) ->
         undefined ->
             {400, #{error => <<"missing subdomain parameter">>}, Req};
         Subdomain ->
-            case pm_registry:revoke(Subdomain) of
-                ok ->
-                    {200, #{ok => true}, Req};
-                {error, not_found} ->
-                    {404, #{error => <<"subdomain not found">>}, Req}
+            case lists:member(Subdomain, pm_registry:get_static_domains()) of
+                true ->
+                    {403, #{error => <<"cannot revoke a base domain">>}, Req};
+                false ->
+                    case pm_registry:revoke(Subdomain) of
+                        ok ->
+                            {200, #{ok => true}, Req};
+                        {error, not_found} ->
+                            {404, #{error => <<"subdomain not found">>}, Req}
+                    end
             end
     end;
 

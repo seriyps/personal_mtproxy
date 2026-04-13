@@ -136,3 +136,14 @@ To manually resync all connected front nodes (e.g. after split-brain recovery):
 ```bash
 /opt/personal_mtproxy/bin/personal_mtproxy eval 'pm_registry:refresh_fronts().'
 ```
+
+> **Note:** if you remove a vhost domain from `sys.config`, it will linger in the
+> front nodes' policy tables (and still accept proxy connections) until the next
+> node restart. This is a known limitation; `pm_registry` only broadcasts *adds*
+> for the current vhost list, not removals.
+> To immediately evict a domain from all front nodes, run on the back node:
+>
+> ```bash
+> /opt/personal_mtproxy/bin/personal_mtproxy eval \
+>   'pm_registry:revoke(<<"old.example.com">>).'
+> ```
